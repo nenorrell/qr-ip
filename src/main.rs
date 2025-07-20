@@ -62,7 +62,7 @@ fn main() {
 
     let server = Server::http(("0.0.0.0", 80)).expect("bind failed");
     let header = Header::from_bytes(b"Content-Type", b"text/html").unwrap();
-    println!("(ready) Visit http://localhost:<mapped_host_port> to view the QR (Ctrl+C to stop)");
+    println!("(ready) Visit http://localhost:80 to view the QR (Ctrl+C to stop)");
 
     for req in server.incoming_requests() {
         let _ = req.respond(Response::from_string(html.clone()).with_header(header.clone()));
