@@ -1,26 +1,20 @@
 GIT_HASH=$(shell git rev-parse --short HEAD)
 QP_IP_IMAGE=ghcr.io/nenorrell/qp-ip
 TAG=latest
-# X11 socket for GUI forwarding
-X11_SOCKET := /tmp/.X11-unix
 PORT ?= 80
 
-.PHONY: all build run
+.PHONY: all build run tag deploy
 
 build:
-	docker build -t $(QP_IP_IMAGE):$(GIT_HASH)
+	docker buildx build -t $(QP_IP_IMAGE):$(GIT_HASH) .
 
-push-qp-ip:
+push:
 	docker push $(QP_IP_IMAGE):latest
 
-tag-qp-ip: build-qp-ip
+tag: build
 	docker tag $(QP_IP_IMAGE):$(GIT_HASH) $(QP_IP_IMAGE):latest
 
-deploy-qp-ip: tag-qp-ip push-qp-ip
+deploy: tag push
 
 run:
-	docker run --rm -it \
-	  -e DISPLAY=$(DISPLAY) \
-	  -v $(X11_SOCKET):$(X11_SOCKET) \
-	  --name qr-ip \
-	  $(QP_IP_IMAGE) --port $(PORT)
+	docker run --rm -it -p 8080:80 $(QP_IP_IMAGE):latest --port 8080

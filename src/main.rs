@@ -1,51 +1,44 @@
-use clap::Parser;
 use local_ip_address::local_ip;
 use qrcode::QrCode;
-use qrcode::render::unicode; // only if you want a terminal fallback
-use image::Rgb;
-use show_image::{create_window, ImageInfo, ImageView, WindowOptions};
+use qrcode::render::svg;
+use tiny_http::{Server, Response, Header};
 
-/// Simple tool to show a QR code of your LAN IP + port
-#[derive(Parser)]
-#[command(name = "qr-ip")]
-struct Cli {
-    /// Port to embed in the URL (default: 80)
-    #[arg(short, long, default_value = "80")]
-    port: u16,
-}
+fn main() {
+    // Read optional first CLI arg as port, default 80
+    let port: u16 = std::env::args()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(80);
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1) parse port
-    let cli = Cli::parse();
+    let ip = local_ip().expect("could not get local ip");
+    let url = format!("http://{}:{}", ip, port);
 
-    // 2) get local IP (first non-loopback IPv4)
-    let ip = local_ip()?;
-    let url = format!("http://{}:{}", ip, cli.port);
-
-    // 3) generate QR code (RGB image, 256×256px)
-    let code = QrCode::new(url.as_bytes())?;
-    let image = code
-        .render::<Rgb<u8>>()
+    // Build QR and render straight to SVG (string)
+    let code = QrCode::new(url.as_bytes()).expect("qr gen failed");
+    let svg = code
+        .render()
         .min_dimensions(256, 256)
-        .dark_color(Rgb([0, 0, 0]))
-        .light_color(Rgb([255, 255, 255]))
+        .dark_color(svg::Color("#000"))
+        .light_color(svg::Color("#fff"))
         .build();
-    let (w, h) = (image.width(), image.height());
-    let raw = image.into_raw(); // Vec<u8>, 3×w×h bytes
 
-    // 4) open a window and show it
-    //    (show-image uses glutin/OpenGL under the hood)
-    show_image::make_window_builder()
-        .with_title("QR Code for your LAN URL")
-        .with_inner_size((w as u32, h as u32))
-        .build()?;
-    let window = create_window("qr", WindowOptions::default())?;
-    window.set_image(
-        "qr",
-        ImageView::new(ImageInfo::rgb8(w, h), &raw),
-    )?;
+    // Embed SVG inline (no base64)
+    let html = format!(
+        "<!doctype html><html><body style='display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;font-family:sans-serif'>
+           {svg}
+           <p style='margin-top:1rem'>{url}</p>
+         </body></html>"
+    );
 
-    // 5) block until the window is closed
-    window.wait_until_destroyed()?;
-    Ok(())
+    let server = Server::http(("0.0.0.0", port)).expect("server start failed");
+    println!("Serving QR for {url} on http://localhost:{port}");
+
+    let ct = Header::from_bytes(b"Content-Type", b"text/html").unwrap();
+
+    for req in server.incoming_requests() {
+        let _ = req.respond(
+            Response::from_string(html.clone())
+                .with_header(ct.clone())
+        );
+    }
 }

@@ -1,18 +1,12 @@
-FROM rust:1-slim
-
-# install system deps for X11 / GL
-RUN apt-get update && \
-    apt-get install -y \
-      libx11-dev \
-      libxkbcommon-dev \
-      libgl1-mesa-dev \
-      libwayland-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+FROM rust:1-alpine AS build
+RUN apk add --no-cache musl-dev
 WORKDIR /app
-COPY . .
-
-# build in release mode
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 RUN cargo build --release
 
-ENTRYPOINT ["./target/release/qr-ip"]
+FROM alpine:3.20
+WORKDIR /app
+COPY --from=build /app/target/release/qr-ip /app/qr-ip
+EXPOSE 80
+ENTRYPOINT ["/app/qr-ip"]
