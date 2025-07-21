@@ -1,53 +1,51 @@
 use qrcode::QrCode;
 use qrcode::render::svg;
 use tiny_http::{Server, Response, Header};
-use std::net::{UdpSocket, IpAddr};
+use std::net::{UdpSocket, IpAddr, ToSocketAddrs};
 
-fn discover_ip() -> IpAddr {
-    let sock = UdpSocket::bind("0.0.0.0:0").expect("bind socket");
-    if sock.connect("1.1.1.1:80").is_ok() {
-        if let Ok(addr) = sock.local_addr() {
-            return addr.ip();
-        }
+fn resolve_host_gateway() -> Option<IpAddr> {
+    // Try to resolve host.docker.internal
+    ("host.docker.internal", 80).to_socket_addrs().ok()
+        .and_then(|mut iter| iter.find(|a| matches!(a.ip(), IpAddr::V4(_))).map(|a| a.ip()))
+}
+
+fn udp_self_ip() -> Option<IpAddr> {
+    let sock = UdpSocket::bind("0.0.0.0:0").ok()?;
+    let _ = sock.connect("1.1.1.1:80");
+    sock.local_addr().ok().map(|a| a.ip())
+}
+
+fn choose_ip() -> (String, bool) {
+    if let Ok(ip) = std::env::var("HOST_IP") {
+        return (ip, true); // trusted
     }
-    IpAddr::from([127,0,0,1])
+    if let Some(gw) = resolve_host_gateway() {
+        return (gw.to_string(), false); // gateway, maybe not LAN
+    }
+    if let Some(self_ip) = udp_self_ip() {
+        return (self_ip.to_string(), false);
+    }
+    ("127.0.0.1".into(), false)
 }
 
 fn parse_target_port() -> u16 {
-    // Priority: --target-port <n> | -t <n> | positional number | env TARGET_PORT | default 80
-    let args: Vec<String> = std::env::args().collect();
-    let mut next_is_port = false;
-    for a in args.iter().skip(1) {
-        if next_is_port {
-            if let Ok(p) = a.parse() { return p; }
-            next_is_port = false;
-        } else if a == "--target-port" || a == "-t" {
-            next_is_port = true;
-        } else if let Ok(p) = a.parse::<u16>() {
-            return p;
-        }
-    }
-    if let Ok(env_p) = std::env::var("TARGET_PORT") {
-        if let Ok(p) = env_p.parse() { return p; }
-    }
-    80
+    std::env::args().nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(80)
 }
 
 fn main() {
     let target_port = parse_target_port();
+    let (ip, trusted) = choose_ip();
+    if !trusted {
+        eprintln!("(warn) Using '{ip}' (likely container/gateway IP). For LAN devices set HOST_IP to your host Wi-Fi IP (e.g. 192.168.x.x).");
+    }
+    let url = format!("http://{ip}:{target_port}");
+    println!("(info) QR encodes: {url}");
+    println!("(info) Serving page on 0.0.0.0:80 (map with -p <host>:80)");
 
-    // Allow override for host IP (recommended when running in Docker)
-    let ip_string = std::env::var("QR_HOST_IP")
-        .unwrap_or_else(|_| discover_ip().to_string());
-
-    let url = format!("http://{}:{}", ip_string, target_port);
-
-    println!("(info) QR will encode: {url}");
-    println!("(info) Serving the QR page on internal port 80 (map it with -p HOST:80)");
-
-    let code = QrCode::new(url.as_bytes()).expect("qr gen failed");
-    let svg_img = code
-        .render()
+    let code = QrCode::new(url.as_bytes()).expect("QR gen failed");
+    let svg_img = code.render()
         .min_dimensions(256, 256)
         .dark_color(svg::Color("#000"))
         .light_color(svg::Color("#fff"))
@@ -62,7 +60,7 @@ fn main() {
 
     let server = Server::http(("0.0.0.0", 80)).expect("bind failed");
     let header = Header::from_bytes(b"Content-Type", b"text/html").unwrap();
-    println!("(ready) Visit http://localhost:80 to view the QR (Ctrl+C to stop)");
+    println!("(ready) Open http://localhost:80>");
 
     for req in server.incoming_requests() {
         let _ = req.respond(Response::from_string(html.clone()).with_header(header.clone()));

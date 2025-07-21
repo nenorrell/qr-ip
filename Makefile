@@ -1,7 +1,9 @@
 GIT_HASH=$(shell git rev-parse --short HEAD)
 QP_IP_IMAGE=ghcr.io/nenorrell/qp-ip
 TAG=latest
-PORT ?= 80
+TARGET_PORT ?= 80
+HOST_IP := $(shell .bin/find-host-ip.sh)
+SERVING_PORT ?= 80
 
 .PHONY: all build run tag deploy
 
@@ -17,4 +19,8 @@ tag: build
 deploy: tag push
 
 run:
-	docker run --rm -it -p 8080:80 $(QP_IP_IMAGE):latest --port 8080
+	@echo "Using LAN IP: $(HOST_IP)"
+	docker run --rm -it --init \
+		-e HOST_IP=$(HOST_IP) \
+		-p $(SERVING_PORT):80 \
+		ghcr.io/nenorrell/qp-ip:latest $(TARGET_PORT)
