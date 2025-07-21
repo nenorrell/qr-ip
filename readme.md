@@ -13,13 +13,13 @@
 ### 1. Run it with curl (zero install)
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/nenorrell/qr-ip/main/run.sh)" <app-port> <exposed-port>
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/nenorrell/qr-ip/master/run.sh)" <app-port> <exposed-port>
 ```
 
 **Example:**
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/nenorrell/qr-ip/main/run.sh)" 5173 8080
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/nenorrell/qr-ip/master/run.sh)" 5173 8080
 ```
 
 * `5173` is your **app's internal port** (used in the QR code)
