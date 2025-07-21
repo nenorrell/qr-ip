@@ -1,5 +1,5 @@
 GIT_HASH=$(shell git rev-parse --short HEAD)
-QP_IP_IMAGE=ghcr.io/nenorrell/qp-ip
+QP_IP_IMAGE=ghcr.io/nenorrell/qr-ip
 TAG=latest
 TARGET_PORT ?= 80
 HOST_IP := $(shell .bin/find-host-ip.sh)
@@ -23,4 +23,4 @@ run:
 	docker run --rm -it --init \
 		-e HOST_IP=$(HOST_IP) \
 		-p $(SERVING_PORT):80 \
-		ghcr.io/nenorrell/qp-ip:latest $(TARGET_PORT)
+		ghcr.io/nenorrell/qr-ip:latest $(TARGET_PORT)

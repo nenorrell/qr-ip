@@ -5,7 +5,7 @@ set -euo pipefail
 TARGET_PORT="${1:-80}"   # QR port
 VIEW_PORT="${2:-8080}"     # browser port
 
-IMAGE="ghcr.io/nenorrell/qp-ip:latest"
+IMAGE="ghcr.io/nenorrell/qr-ip:latest"
 
 # ------------ Detect LAN IP (macOS & Linux) ------------
 detect_ip() {
