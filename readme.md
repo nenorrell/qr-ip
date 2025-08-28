@@ -4,7 +4,7 @@
 
 ## 🧠 What It Does
 
-`qr-ip` detects your **host machine's LAN IP** and starts a lightweight HTTP server that serves a QR code with the link to your app (e.g. `http://192.168.86.33:5173`). Scan the QR from your phone and access your app instantly — no setup required.
+`qr-ip` detects your **host machine's LAN IP** and starts a lightweight HTTP server that serves a QR code with the link to your app (e.g. `http://XXX.XXX.XX.XX:5173`). Scan the QR from your phone and access your app instantly — no setup required.
 
 ## 🚀 Quick Start
 
